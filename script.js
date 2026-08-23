@@ -5,7 +5,8 @@
    and small UI interactions.
    ========================================================= */
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const configuredApiUrl = new URLSearchParams(window.location.search).get('api');
+const API_BASE_URL = configuredApiUrl || 'http://127.0.0.1:8000';
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Visual language shared across the app: each room type gets a color + emoji.
@@ -259,7 +260,7 @@ form.addEventListener('submit', async (e) => {
       type: 'error',
       title: 'Unable to connect to prediction server',
       message: isNetworkError
-        ? 'Please check that FastAPI is running at 127.0.0.1:8000.'
+        ? `Please check that FastAPI is running at ${API_BASE_URL}.`
         : 'Something went wrong while getting a prediction. Please try again.',
       duration: 6500
     });
