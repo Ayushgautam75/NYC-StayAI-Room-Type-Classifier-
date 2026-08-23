@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NYC StayAI — Room Type Classifier</title>
+<meta name="description" content="Predict NYC Airbnb room types with machine learning." />
+
+<!-- Fonts: Sora for display, Inter for body, JetBrains Mono for data -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Ambient background layer -->
+<div class="ambient" aria-hidden="true">
+  <div class="orb orb-entire"></div>
+  <div class="orb orb-private"></div>
+  <div class="orb orb-shared"></div>
+  <div class="grid-overlay"></div>
+</div>
+
+<!-- ============ HEADER ============ -->
+<header class="site-header" id="top">
+  <div class="header-inner">
+    <a href="#top" class="logo">
+      <span class="logo-mark">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <path d="M13 2C13 2 21 10.5 21 16.2C21 20.6 17.4 24 13 24C8.6 24 5 20.6 5 16.2C5 10.5 13 2 13 2Z" fill="url(#logoGrad)"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="5" y1="2" x2="21" y2="24" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FF385C"/>
+              <stop offset="1" stop-color="#7C3AED"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </span>
+      <span class="logo-text">NYC Stay<span class="accent-text">AI</span></span>
+    </a>
+
+    <nav class="main-nav" id="mainNav">
+      <a href="#top" class="nav-link active">Home</a>
+      <a href="#predict" class="nav-link">Predict</a>
+      <a href="#analytics" class="nav-link">Analytics</a>
+      <a href="#about" class="nav-link">About</a>
+      <a href="https://github.com" target="_blank" rel="noopener" class="nav-link">GitHub</a>
+    </nav>
+
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Powered by Machine Learning
+    </div>
+    <h1 class="hero-title">
+      NYC Airbnb <span class="gradient-word">Room Type</span> Classifier
+    </h1>
+    <p class="hero-subtitle">
+      Predict whether an Airbnb listing is an Entire Home, Private Room, or Shared Room
+      using a trained classification model — fed by real listing signals like location, price, and availability.
+    </p>
+    <div class="hero-cta-row">
+      <a href="#predict" class="btn btn-primary">
+        Start Prediction
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#about" class="btn btn-ghost">How it works</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="hero-stat-num">48,895</span>
+        <span class="hero-stat-label">Listings analyzed</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-num">3</span>
+        <span class="hero-stat-label">Room classes</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-num">4</span>
+        <span class="hero-stat-label">Models evaluated</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Signature element: orbiting classification rings representing the 3 room-type classes -->
+  <div class="hero-visual" aria-hidden="true">
+    <div class="orbit-system">
+      <div class="orbit-ring ring-1"></div>
+      <div class="orbit-ring ring-2"></div>
+      <div class="orbit-ring ring-3"></div>
+      <div class="orbit-core">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3L21 10.5V20A1 1 0 0 1 20 21H15V14H9V21H4A1 1 0 0 1 3 20V10.5Z" stroke="white" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="orbit-chip chip-entire" style="--angle:0deg">Entire home/apt</div>
+      <div class="orbit-chip chip-private" style="--angle:120deg">Private room</div>
+      <div class="orbit-chip chip-shared" style="--angle:240deg">Shared room</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PREDICTION SECTION ============ -->
+<section class="predict-section" id="predict">
+  <div class="section-head">
+    <span class="eyebrow">Try it live</span>
+    <h2>Predict a listing's room type</h2>
+    <p class="section-sub">Enter the listing details below. The request is sent straight to your FastAPI backend at <code>127.0.0.1:8000</code>.</p>
+  </div>
+
+  <div class="predict-grid">
+
+    <!-- LEFT: FORM CARD -->
+    <div class="glass-card form-card">
+      <div class="card-header">
+        <h3>Listing Information</h3>
+        <span class="card-header-icon">📋</span>
+      </div>
+
+      <form id="predictForm" novalidate>
+        <div class="form-grid">
+
+          <div class="field">
+            <label for="latitude">Latitude</label>
+            <input type="number" id="latitude" name="latitude" step="0.000001" placeholder="40.7128" required>
+            <span class="field-error" data-error-for="latitude"></span>
+          </div>
+
+          <div class="field">
+            <label for="longitude">Longitude</label>
+            <input type="number" id="longitude" name="longitude" step="0.000001" placeholder="-74.0060" required>
+            <span class="field-error" data-error-for="longitude"></span>
+          </div>
+
+          <div class="field">
+            <label for="price">Price per Night ($)</label>
+            <input type="number" id="price" name="price" min="0" step="1" placeholder="150" required>
+            <span class="field-error" data-error-for="price"></span>
+          </div>
+
+          <div class="field">
+            <label for="minimum_nights">Minimum Nights</label>
+            <input type="number" id="minimum_nights" name="minimum_nights" min="1" step="1" placeholder="2" required>
+            <span class="field-error" data-error-for="minimum_nights"></span>
+          </div>
+
+          <div class="field">
+            <label for="number_of_reviews">Number of Reviews</label>
+            <input type="number" id="number_of_reviews" name="number_of_reviews" min="0" step="1" placeholder="45" required>
+            <span class="field-error" data-error-for="number_of_reviews"></span>
+          </div>
+
+          <div class="field">
+            <label for="reviews_per_month">Reviews per Month</label>
+            <input type="number" id="reviews_per_month" name="reviews_per_month" min="0" step="0.01" placeholder="2.5" required>
+            <span class="field-error" data-error-for="reviews_per_month"></span>
+          </div>
+
+          <div class="field">
+            <label for="calculated_host_listings_count">Host Listings Count</label>
+            <input type="number" id="calculated_host_listings_count" name="calculated_host_listings_count" min="0" step="1" placeholder="3" required>
+            <span class="field-error" data-error-for="calculated_host_listings_count"></span>
+          </div>
+
+          <div class="field">
+            <label for="availability_365">Availability (days / 365)</label>
+            <input type="number" id="availability_365" name="availability_365" min="0" max="365" step="1" placeholder="180" required>
+            <span class="field-error" data-error-for="availability_365"></span>
+          </div>
+
+          <div class="field">
+            <label for="neighbourhood_group">Neighbourhood Group</label>
+            <select id="neighbourhood_group" name="neighbourhood_group" required>
+              <option value="" disabled selected>Select a borough</option>
+              <option value="Manhattan">Manhattan</option>
+              <option value="Brooklyn">Brooklyn</option>
+              <option value="Queens">Queens</option>
+              <option value="Bronx">Bronx</option>
+              <option value="Staten Island">Staten Island</option>
+            </select>
+            <span class="field-error" data-error-for="neighbourhood_group"></span>
+          </div>
+
+          <div class="field">
+            <label for="neighbourhood">Neighbourhood</label>
+            <input type="text" id="neighbourhood" name="neighbourhood" placeholder="Chelsea" required>
+            <span class="field-error" data-error-for="neighbourhood"></span>
+          </div>
+
+        </div>
+
+        <button type="submit" class="btn btn-predict" id="predictBtn">
+          <span class="btn-label">
+            <span class="btn-emoji">🚀</span> Predict Room Type
+          </span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </div>
+
+    <!-- RIGHT: RESULT CARD -->
+    <div class="glass-card result-card" id="resultCard">
+      <div class="card-header">
+        <h3>Your Prediction</h3>
+        <span class="card-header-icon">✨</span>
+      </div>
+
+      <div class="result-empty" id="resultEmpty">
+        <div class="result-empty-icon">🏙️</div>
+        <p>Enter listing details and click <strong>Predict</strong> to see the result.</p>
+      </div>
+
+      <div class="result-content" id="resultContent" hidden>
+        <div class="prediction-hero">
+          <div class="confidence-ring" id="confidenceRing">
+            <svg viewBox="0 0 120 120" class="ring-svg">
+              <circle cx="60" cy="60" r="52" class="ring-track"/>
+              <circle cx="60" cy="60" r="52" class="ring-progress" id="ringProgress"/>
+            </svg>
+            <div class="ring-center">
+              <span class="ring-emoji" id="predictedEmoji">🏠</span>
+            </div>
+          </div>
+          <div class="prediction-text">
+            <span class="prediction-label">Predicted Room Type</span>
+            <h4 class="prediction-value" id="predictedRoomType">—</h4>
+            <span class="confidence-text">Confidence: <strong id="confidenceValue">—</strong></span>
+          </div>
+        </div>
+
+        <div class="probability-list" id="probabilityList">
+          <!-- populated dynamically by script.js -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ ANALYTICS SECTION ============ -->
+<section class="analytics-section" id="analytics">
+  <div class="section-head">
+    <span class="eyebrow">Dataset overview</span>
+    <h2>Analytics dashboard</h2>
+    <p class="section-sub">A snapshot of the dataset the model was trained on.</p>
+  </div>
+
+  <div class="stat-cards">
+    <div class="glass-card stat-card">
+      <span class="stat-icon">🏘️</span>
+      <span class="stat-num">48,895</span>
+      <span class="stat-label">Total Listings</span>
+    </div>
+    <div class="glass-card stat-card">
+      <span class="stat-icon">🏷️</span>
+      <span class="stat-num">3</span>
+      <span class="stat-label">Room Types</span>
+    </div>
+    <div class="glass-card stat-card">
+      <span class="stat-icon">💵</span>
+      <span class="stat-num">$152</span>
+      <span class="stat-label">Average Price</span>
+    </div>
+    <div class="glass-card stat-card">
+      <span class="stat-icon">🤖</span>
+      <span class="stat-num">ML</span>
+      <span class="stat-label">Classification</span>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="glass-card chart-card">
+      <div class="chart-card-head">
+        <h3>Room Type Distribution</h3>
+        <span class="data-tag">Demo data</span>
+      </div>
+      <canvas id="roomTypeChart"></canvas>
+    </div>
+    <div class="glass-card chart-card">
+      <div class="chart-card-head">
+        <h3>Price vs Room Type</h3>
+        <span class="data-tag">Demo data</span>
+      </div>
+      <canvas id="priceChart"></canvas>
+    </div>
+    <div class="glass-card chart-card chart-card-wide">
+      <div class="chart-card-head">
+        <h3>Availability Overview</h3>
+        <span class="data-tag">Demo data</span>
+      </div>
+      <canvas id="availabilityChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MAP SECTION ============ -->
+<section class="map-section" id="map-section">
+  <div class="section-head">
+    <span class="eyebrow">Geography</span>
+    <h2>Listing location</h2>
+    <p class="section-sub">Your submitted coordinates are dropped as a pin once a prediction is made.</p>
+  </div>
+  <div class="glass-card map-card">
+    <div id="nycMap"></div>
+  </div>
+</section>
+
+<!-- ============ ABOUT / MODEL SECTION ============ -->
+<section class="about-section" id="about">
+  <div class="section-head">
+    <span class="eyebrow">Under the hood</span>
+    <h2>About the model</h2>
+    <p class="section-sub">A quick look at the problem framing and pipeline behind the prediction.</p>
+  </div>
+
+  <div class="about-grid">
+    <div class="glass-card about-info-card">
+      <dl class="about-list">
+        <div class="about-row">
+          <dt>Problem</dt>
+          <dd>Multiclass classification</dd>
+        </div>
+        <div class="about-row">
+          <dt>Target variable</dt>
+          <dd><code>room_type</code></dd>
+        </div>
+        <div class="about-row">
+          <dt>Algorithms evaluated</dt>
+          <dd>Logistic Regression, Decision Tree, Random Forest, Gradient Boosting</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="glass-card pipeline-card">
+      <h3>Pipeline</h3>
+      <div class="pipeline-flow">
+        <span class="pipeline-step">Data Cleaning</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Feature Engineering</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Preprocessing</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step">Model</span>
+        <span class="pipeline-arrow">→</span>
+        <span class="pipeline-step pipeline-step-final">Prediction</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="glass-card feature-card"><span class="feature-icon">💵</span><span>Price</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">📍</span><span>Location</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">🌙</span><span>Minimum Nights</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">⭐</span><span>Reviews</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">📈</span><span>Reviews per Month</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">📅</span><span>Availability</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">🧑‍💼</span><span>Host Listings</span></div>
+    <div class="glass-card feature-card"><span class="feature-icon">🗺️</span><span>Neighbourhood</span></div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <p>NYC StayAI — Machine Learning Room Type Classification</p>
+    <div class="footer-links">
+      <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+      <span class="footer-dot">•</span>
+      <span>FastAPI</span>
+      <span class="footer-dot">•</span>
+      <span>Machine Learning</span>
+    </div>
+  </div>
+</footer>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
