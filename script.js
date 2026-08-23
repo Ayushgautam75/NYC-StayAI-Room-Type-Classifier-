@@ -6,7 +6,7 @@
    ========================================================= */
 
 const configuredApiUrl = new URLSearchParams(window.location.search).get('api');
-const API_BASE_URL = configuredApiUrl || 'http://127.0.0.1:8000';
+const API_BASE_URL = configuredApiUrl || 'https://nyc-stayai-room.onrender.com';
 const PREDICT_ENDPOINT = `${API_BASE_URL}/predict`;
 
 // Visual language shared across the app: each room type gets a color + emoji.
